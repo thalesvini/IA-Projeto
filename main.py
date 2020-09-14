@@ -70,6 +70,8 @@ class RedeNeural:
         self.errosSaida = None
         self.errosOculta = None
         self.saidaOculta = None
+        self.netOculta = None
+        self.netSaida = None
         self.entrada = None
         self.desejado = None
         self.obtido = None
@@ -102,7 +104,7 @@ class RedeNeural:
                 print(f'Erro da rede é {self.erroRede()}')
 
     def inicializarEntrada(self, novaEntrada):
-        vetor = []
+        vetor = [[]]
         for i in range(self.qtdNeuroniosEntrada):
             vetor[i] = [novaEntrada[i]]  # vetor coluna
 
@@ -114,7 +116,7 @@ class RedeNeural:
     def inicializarDesejado(self, novaEntrada):
         classe = novaEntrada[len(novaEntrada) - 1]  # 1, 2, 3, 4, 5
 
-        vetor = []
+        vetor = [[]]
         for i in range(self.arquivo.getQtdClasses()):
             if self.funcTransferencia == 'Logística':
                 vetor[i] = [0]  # entre 0 e 1
@@ -127,8 +129,27 @@ class RedeNeural:
         print(self.desejado)
         print()
 
+    def gerarSaidasOculta(self):
+        self.netOculta = self.pesosEntradaOculta @ self.entrada
+        self.saidaOculta = self.ativacao(self.netOculta, self.funcTransferencia)
+
+    def gerarObtido(self):
+        self.netSaida = self.pesosOcultaSaida @ self.saidaOculta
+        self.obtido = self.ativacao(self.netSaida, self.funcTransferencia)
+
+    def ativacao(self, dados, opcao):
+        vetor = [[]]
+        for i in range(len(dados)):
+            for j in range(len(dados[0])):
+                if opcao == 'Logística':
+                    vetor[i][j] = 1 / (1 + math.exp(-dados[i][j]))  # entre 0 e 1
+                elif opcao == 'Hiperbólica':
+                    vetor[i][j] = 2 / ((1 + math.exp(-2 * dados[i][j])) - 1)
+
+        return np.array(vetor)
+
     def encontrarErrosDaSaida(self):
-        vetor = []
+        vetor = [[]]
         for i in range(self.arquivo.getQtdClasses()):
             if self.funcTransferencia == 'Logística':
                 # (desejado - obtido) * [(obtido) * (1 - obtido)]
@@ -145,7 +166,7 @@ class RedeNeural:
     def encontrarErrosOculta(self):
         self.errosOculta = self.pesosOcultaSaida @ self.errosSaida
 
-        vetor = []
+        vetor = [[]]
         for i in range(self.qtdNeuroniosOculta):
             if self.funcTransferencia == 'Logística':
                 vetor[i] = [self.errosOculta[i][0] * (self.obtido[i][0] * (1 - self.obtido[i][0]))]
@@ -158,6 +179,12 @@ class RedeNeural:
         print(self.errosOculta)
         print()
 
+    def atualizarPesos(self, pesos, erros, saida):
+        for i in range(len(pesos)):
+            for j in range(len(pesos[0])):
+                novoValor = pesos[i][j] + self.taxaAprendizado * erros[i][0] * saida[j][0]
+                pesos[i][j] = novoValor
+
     def erroRede(self):
         soma = 0
         for i in range(len(self.errosSaida)):
@@ -168,3 +195,4 @@ class RedeNeural:
 if __name__ == '__main__':
     arq = CSV('treinamento.csv')
     teste = CSV('teste.csv')
+    net = RedeNeural(arq, 'Logística')
